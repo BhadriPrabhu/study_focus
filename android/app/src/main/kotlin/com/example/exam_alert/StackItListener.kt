@@ -19,14 +19,20 @@ class StackItListener : NotificationListenerService() {
         // 2. Time Window Check
         val calendar = java.util.Calendar.getInstance()
         val nowMins = (calendar.get(java.util.Calendar.HOUR_OF_DAY) * 60) + calendar.get(java.util.Calendar.MINUTE)
-        
-        // Default to "Always Block" (0 to 1439) if keys are missing
+
         val startMins = prefs.getInt("start_time_mins", 0)
         val endMins = prefs.getInt("end_time_mins", 1439)
 
+        // Support for overnight ranges (e.g., 10 PM to 2 AM)
+        val isInsideWindow = if (startMins <= endMins) {
+            nowMins in startMins..endMins
+        } else {
+            nowMins >= startMins || nowMins <= endMins
+        }
+
         Log.d("StackIt", "Current Mins: $nowMins, Window: $startMins to $endMins")
 
-        if (nowMins in startMins..endMins) {
+        if (isInsideWindow) {
             val blockedApps = prefs.getStringSet("blocked_apps", emptySet()) ?: emptySet()
             val packageName = sbn.packageName
 
@@ -59,13 +65,40 @@ class StackItListener : NotificationListenerService() {
         }
     }
 
+    // In saveToVault function inside StackItListener.kt
     private fun saveToVault(pkg: String, title: String, content: String) {
+        var db: android.database.sqlite.SQLiteDatabase? = null
         try {
-            val db = openOrCreateDatabase("stackit_vault.db", Context.MODE_PRIVATE, null)
-            db.execSQL("CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, pkg TEXT, title TEXT, content TEXT, timestamp INTEGER)")
-            db.execSQL("INSERT INTO notifications (pkg, title, content, timestamp) VALUES (?, ?, ?, ?)", 
-                arrayOf(pkg, title, content, System.currentTimeMillis()))
-            db.close()
-        } catch (e: Exception) { Log.e("StackIt", "DB Error: ${e.message}") }
+            val prefs = getSharedPreferences("StackItPrefs", Context.MODE_PRIVATE)
+            val activeSubject = prefs.getString("active_subject_name", "General") ?: "General"
+
+            db = openOrCreateDatabase("stackit_vault.db", Context.MODE_PRIVATE, null)
+            
+            // Create table with all columns immediately if it doesn't exist
+            db.execSQL("CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, pkg TEXT, title TEXT, content TEXT, timestamp INTEGER, subject TEXT)")
+            
+            // Verify 'subject' column exists (Only needed if migrating from an old version)
+            val cursor = db.rawQuery("PRAGMA table_info(notifications)", null)
+            var hasSubject = false
+            while (cursor.moveToNext()) {
+                if (cursor.getString(1) == "subject") {
+                    hasSubject = true
+                    break
+                }
+            }
+            cursor.close()
+            
+            if (!hasSubject) {
+                db.execSQL("ALTER TABLE notifications ADD COLUMN subject TEXT DEFAULT 'General'")
+            }
+
+            db.execSQL("INSERT INTO notifications (pkg, title, content, timestamp, subject) VALUES (?, ?, ?, ?, ?)", 
+                arrayOf(pkg, title, content, System.currentTimeMillis(), activeSubject))
+                
+        } catch (e: Exception) { 
+            Log.e("StackIt", "DB Error: ${e.message}") 
+        } finally {
+            db?.close()
+        }
     }
 }
