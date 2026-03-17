@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:math' as math;
+import 'splash_screen.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -65,7 +66,8 @@ class MyApp extends StatelessWidget {
         colorSchemeSeed: Colors.teal,
         textTheme: GoogleFonts.poppinsTextTheme(),
       ),
-      home: const MainNavigationScreen(),
+      // In main.dart MyApp class
+      home: const SplashScreen(),
     );
   }
 }
@@ -271,7 +273,6 @@ class _ExamSchedulerScreenState extends State<ExamSchedulerScreen> {
       debugPrint(e.toString());
     }
   }
-
 
   void _addSchedule() {
     _subjectController.clear();
@@ -764,7 +765,23 @@ class _NotificationVaultScreenState extends State<NotificationVaultScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Siloed History")),
+      appBar: AppBar(
+        title: Text(
+          "Siloed History",
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+            ),
+          ),
+        ),
+      ),
       body: FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
         future: _getGroupedVault(),
         builder: (context, snapshot) {
@@ -772,7 +789,37 @@ class _NotificationVaultScreenState extends State<NotificationVaultScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.data!.isEmpty) {
-            return const Center(child: Text("Vault is empty."));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Using an inventory/vault-related icon
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: 80,
+                    color: Colors.blueGrey[100],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Your vault is empty",
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      color: Colors.blueGrey[300],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Notifications siloed during focus\nsessions will appear here.",
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.blueGrey[200],
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -901,6 +948,7 @@ class AnalyticsScreen extends StatelessWidget {
               const SizedBox(height: 15),
               ...apps
                   .map((item) => _buildAnalyticsCard(item, maxCount))
+                  // ignore: unnecessary_to_list_in_spreads
                   .toList(),
             ],
           );
@@ -1073,7 +1121,7 @@ class AnalyticsScreen extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 16,
               color: Colors.blueGrey[300],
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],
